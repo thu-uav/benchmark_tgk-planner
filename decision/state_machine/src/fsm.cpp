@@ -181,19 +181,15 @@ namespace tgk_planner
       bool success = searchForTraj(start_pos_, start_vel_, start_acc_, end_pos_, end_vel_, end_acc_, replan_time_, normal, dire, false); //TODO what if it can not finish in 10ms?
       if (success)
       {
-        std::cout<<"in success"<<std::endl;
         front_end_planner_ptr2_->getTraj(traj_);
         if (use_optimization_)
         {
-          std::cout<<"in optmize"<<std::endl;
           bool optimize_succ = optimize();
-          std::cout<<"aft optimize: "<<optimize_succ<<std::endl;
           if (optimize_succ)
           {
             optimizer_ptr_->getTraj(traj_);
           }
         }
-        std::cout<<"chk point 1"<<std::endl;
         vector<StatePVA> vis_x;
         traj_.sampleWholeTrajectory(&vis_x);
         vis_ptr_->visualizeStates(vis_x, OptimizedTraj, pos_checker_ptr_->getLocalTime());
@@ -203,7 +199,6 @@ namespace tgk_planner
         new_goal_ = false;
         start_follow_time = ros::Time::now();
         changeState(FOLLOW_TRAJ);
-        std::cout<<"chk point 2"<<std::endl;
       }
       //else
       //{
@@ -403,9 +398,7 @@ namespace tgk_planner
     if (!optimizer_ptr_->setFrontEndTraj(traj_)) {
       return false;
     }
-    std::cout<<"set front end"<<std::endl;
     bool res = optimizer_ptr_->solve();
-    std::cout<<"after solve"<<std::endl;
     ros::Time optimize_end_time = ros::Time::now();
     ROS_INFO_STREAM("optimize time: " << (optimize_end_time - optimize_start_time).toSec());
     return res;

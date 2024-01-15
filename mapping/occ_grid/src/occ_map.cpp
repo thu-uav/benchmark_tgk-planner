@@ -755,13 +755,13 @@ void OccMap::init(const ros::NodeHandle& nh)
     sync_image_odom_.reset(new message_filters::Synchronizer<SyncPolicyImageOdom>(SyncPolicyImageOdom(100), *depth_sub_, *odom_sub_));
     sync_image_odom_->registerCallback(boost::bind(&OccMap::depthOdomCallback, this, _1, _2, T_ic0_, last_T_wc0_, last_depth0_image_, "camera_front"));
     //global_occ_vis_timer_ = node_.createTimer(ros::Duration(5), &OccMap::globalOccVisCallback, this);
-    local_occ_vis_timer_ = node_.createTimer(ros::Duration(0.3), &OccMap::localOccVisCallback, this);
+    local_occ_vis_timer_ = node_.createTimer(ros::Duration(0.1), &OccMap::localOccVisCallback, this);
   }
 	else
 	{
     indep_odom_sub_ = node_.subscribe<nav_msgs::Odometry>("/odom_topic", 10, &OccMap::indepOdomCallback, this, ros::TransportHints().tcpNoDelay());
 		// global_occ_vis_timer_ = node_.createTimer(ros::Duration(5), &OccMap::globalOccVisCallback, this);
-    local_occ_vis_timer_ = node_.createTimer(ros::Duration(0.3), &OccMap::localOccVisCallback, this);
+    local_occ_vis_timer_ = node_.createTimer(ros::Duration(0.1), &OccMap::localOccVisCallback, this);
 	}
   curr_view_cloud_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/occ_map/local_view_cloud", 1);
   hist_view_cloud_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/occ_map/history_view_cloud", 1);

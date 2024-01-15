@@ -85,13 +85,12 @@ bool TrajOptimizer::solve()
   bool result(false);
   
   Trajectory last_valid_traj;
-  double per_close = 90.0;
+  double per_close = 20.0;
+  double per_acc = 20;
   int devide_times = 0;
-  for (; per_close <= 100.0; per_close += 1)
+  for (; per_close <= 40.0; per_close += 1)
   {
-    std::cout<<"before opt "<<per_close<<std::endl;
     tryQPCloseForm();
-    std::cout<<"after QP"<<std::endl;
     devide_times++;
     
     bool valid = checkTrajectoryConstraints(optimized_traj_);
@@ -145,6 +144,7 @@ bool TrajOptimizer::initialize()
   this->calMatrixA();
   this->calMatrixQ_smooth(MINIMUM_JERK);
   this->calMatrixQ_close();
+  this->calMatrixQ_acc_consistent();
   this->coeff_.resize(m_, 6*3);
   this->calMatrixCandMatrixZ(MIDDLE_P_V_A_CONSISTANT);
   return true;
@@ -469,7 +469,6 @@ void TrajOptimizer::tryQPCloseForm(double percent_of_close)
   double weight_smooth = 100.0 - percent_of_close;
   double weight_close = percent_of_close;
 
-  std::cout<<"chk point a"<<std::endl;
   Eigen::VectorXd Dx1 = Eigen::VectorXd::Zero(3 * m_ + 3);
   Eigen::VectorXd Dy1 = Eigen::VectorXd::Zero(3 * m_ + 3);
   Eigen::VectorXd Dz1 = Eigen::VectorXd::Zero(3 * m_ + 3);
@@ -479,7 +478,6 @@ void TrajOptimizer::tryQPCloseForm(double percent_of_close)
   Dy1(3) = path_(m_, 1); Dy1(4) = vel_way_points_(m_, 1); Dy1(5) =  acc_way_points_(m_, 1); 
   Dz1(0) = path_(0, 2);  Dz1(1) = vel_way_points_(0, 2);  Dz1(2) =  acc_way_points_(0, 2);
   Dz1(3) = path_(m_, 2); Dz1(4) = vel_way_points_(m_, 2); Dz1(5) =  acc_way_points_(m_, 2); 
-  std::cout<<"chk point b"<<std::endl;
   int num = 0;
   for (std::set<int>::iterator it = fixed_pos_.begin(); it != fixed_pos_.end(); ++it)
   {
@@ -488,21 +486,14 @@ void TrajOptimizer::tryQPCloseForm(double percent_of_close)
     Dz1(6 + num) = path_((*it) + 1, 2);
     ++num;
   }
-  std::cout<<"chk point c"<<std::endl;
   
 //   Eigen::MatrixXd A_inv_multiply_Ct = A_inv_ * Ct_;
   Eigen::MatrixXd R = A_inv_multiply_Ct_.transpose() * (weight_smooth*Q_smooth_ + weight_close*Q_close_) * A_inv_multiply_Ct_;
-  std::cout<<"chk point c1"<<std::endl;
-  std::cout<<"col: "<<3 * m_ - 3 - n_<<", row: "<<6 + n_<<std::endl;
-  std::cout<<"m: "<<m_<<", n: "<<n_<<std::endl;
   Eigen::MatrixXd Rpf(3 * m_ - 3 - n_, 6 + n_);
-  std::cout<<"col: "<<3 * m_ - 3 - n_<<", row: "<<3 * m_ - 3 - n_<<std::endl;
   Eigen::MatrixXd Rpp(3 * m_ - 3 - n_, 3 * m_ - 3 - n_);
-  std::cout<<"chk point c2"<<std::endl;
   Rpf = R.block(6 + n_, 0, 3 * m_ - 3 - n_, 6 + n_);
   Rpp = R.block(6 + n_, 6 + n_, 3 * m_ - 3 - n_, 3 * m_ - 3 - n_);
   
-  std::cout<<"chk point d"<<std::endl;
   Eigen::MatrixXd Rpp_inv = Rpp.inverse();
   Eigen::MatrixXd neg_Rpp_inv_multiply_Rfp_tran = - Rpp_inv * Rpf;
   Eigen::MatrixXd Rpp_inv_multiply_Zp = weight_close * Rpp_inv * Zp_;
@@ -510,7 +501,6 @@ void TrajOptimizer::tryQPCloseForm(double percent_of_close)
   Dy1.segment(6 + n_, 3 * m_ - 3 - n_) = Rpp_inv_multiply_Zp.col(1) + neg_Rpp_inv_multiply_Rfp_tran * Dy1.segment( 0, 6 + n_ );
   Dz1.segment(6 + n_, 3 * m_ - 3 - n_) = Rpp_inv_multiply_Zp.col(2) + neg_Rpp_inv_multiply_Rfp_tran * Dz1.segment( 0, 6 + n_ );
 
-  std::cout<<"chk point e"<<std::endl;
   Eigen::VectorXd Px = A_inv_multiply_Ct_ * Dx1;
   Eigen::VectorXd Py = A_inv_multiply_Ct_ * Dy1;
   Eigen::VectorXd Pz = A_inv_multiply_Ct_ * Dz1;
@@ -527,9 +517,7 @@ void TrajOptimizer::tryQPCloseForm(double percent_of_close)
     }
     coeffMats.push_back(coeffMat);
   }
-  std::cout<<"chk point f"<<std::endl;
   optimized_traj_ = Trajectory(time_, coeffMats);
-  std::cout<<"chk point g"<<std::endl;
 }
 
 void TrajOptimizer::calMatrixCandMatrixZ(int type)

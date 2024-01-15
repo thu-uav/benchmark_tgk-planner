@@ -55,6 +55,13 @@ target_link_libraries(traj_server_node
     ${catkin_LIBRARIES}
 )
 
+add_executable(wp_iterator_node
+    src/wp_generator_node.cpp
+)
+target_link_libraries(wp_iterator_node
+    ${catkin_LIBRARIES}
+)
+
 add_dependencies(
   ${catkin_EXPORTED_TARGETS}
 )

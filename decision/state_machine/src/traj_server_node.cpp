@@ -9,6 +9,7 @@
 #include <std_msgs/Empty.h>
 #include "quadrotor_msgs/PositionCommand.h"
 #include "quadrotor_msgs/PolynomialTrajectory.h"
+#include "quadrotor_msgs/TrajectoryPoint.h"
 
 using std::vector;
 
@@ -338,7 +339,15 @@ void odomCallbck(const nav_msgs::OdometryConstPtr odom)
     }
   }
   // #4. just publish
-  _cmd_pub.publish(_cmd);
+  quadrotor_msgs::TrajectoryPoint cmd_new_;
+  cmd_new_.time_from_start = ros::Duration(0.01);
+  cmd_new_.pose.position = _cmd.position;
+  cmd_new_.pose.orientation.w = 1.0;
+  cmd_new_.velocity.linear = _cmd.velocity;
+  cmd_new_.heading = _cmd.yaw;
+  cmd_new_.acceleration.linear = _cmd.acceleration;
+
+  _cmd_pub.publish(cmd_new_);
   Eigen::Vector3d desire_pos(_cmd.position.x, _cmd.position.y, _cmd.position.z);
 
   static tf2_ros::TransformBroadcaster br_map_ego_desired;
@@ -375,7 +384,7 @@ int main(int argc, char** argv)
   ros::Subscriber poly_sub = node.subscribe("planning/poly_traj", 1, polyTrajCallback);
   ros::Subscriber odom_sub = node.subscribe("/curr_state_sub_topic", 50, odomCallbck, ros::TransportHints().tcpNoDelay());
   //ros::Timer cmd_timer = node.createTimer(ros::Duration(0.01), cmdCallback);
-  _cmd_pub = node.advertise<quadrotor_msgs::PositionCommand>("/position_cmd", 50);
+  _cmd_pub = node.advertise<quadrotor_msgs::TrajectoryPoint>("/position_cmd", 50);
   _cmd_vis_pub = node.advertise<visualization_msgs::Marker>("planning/position_cmd_vis", 10);
   _track_err_trig_pub = node.advertise<std_msgs::Empty>("/trig/tracking_err", 1);
 
