@@ -88,9 +88,14 @@ bool TrajOptimizer::solve()
   double per_close = 20.0;
   double per_acc = 20;
   int devide_times = 0;
+  double weight_smooth = 400;
+  double weight_close = 90;
+  double weight_acc = 100;
   for (; per_close <= 40.0; per_close += 1)
   {
-    tryQPCloseForm();
+    Q_all_ = weight_smooth * Q_smooth_ + weight_close * Q_close_ + weight_acc * Q_acc_;
+    Z_all_ = weight_close * Q_close_ * coeff0_;
+    tryQP(Q_all_, Z_all_);
     devide_times++;
     
     bool valid = checkTrajectoryConstraints(optimized_traj_);
@@ -147,6 +152,13 @@ bool TrajOptimizer::initialize()
   this->calMatrixQ_acc_consistent();
   this->coeff_.resize(m_, 6*3);
   this->calMatrixCandMatrixZ(MIDDLE_P_V_A_CONSISTANT);
+  D_ = Eigen::MatrixXd::Zero(3 * m_ + 3, 3); // 3 axes, x, y, z
+  D_(0, 0) = path_(0, 0);  D_(1, 0) = vel_way_points_(0, 0);  D_(2, 0) =  acc_way_points_(0, 0); 
+  D_(3, 0) = path_(m_, 0); D_(4, 0) = vel_way_points_(m_, 0); D_(5, 0) =  acc_way_points_(m_, 0); 
+  D_(0, 1) = path_(0, 1);  D_(1, 1) = vel_way_points_(0, 1);  D_(2, 1) =  acc_way_points_(0, 1);
+  D_(3, 1) = path_(m_, 1); D_(4, 1) = vel_way_points_(m_, 1); D_(5, 1) =  acc_way_points_(m_, 1); 
+  D_(0, 2) = path_(0, 2);  D_(1, 2) = vel_way_points_(0, 2);  D_(2, 2) =  acc_way_points_(0, 2);
+  D_(3, 2) = path_(m_, 2); D_(4, 2) = vel_way_points_(m_, 2); D_(5, 2) =  acc_way_points_(m_, 2); 
   return true;
 }
 
@@ -364,6 +376,47 @@ void TrajOptimizer::setWayPointsAndTime(const std::vector<Eigen::Vector3d>& way_
   // }
   // optimized_traj_ = Trajectory(time_, coeffMats);
 // }
+
+void TrajOptimizer::tryQP(const MatrixXd &Q_all, const MatrixXd &Z_all)
+{
+  // auto start = std::chrono::high_resolution_clock::now();
+  Eigen::MatrixXd R = A_inv_multiply_Ct_.transpose() * Q_all * A_inv_multiply_Ct_;
+  Eigen::MatrixXd Rpf( R.block(6, 0, 3 * m_ - 3, 6) );
+  Eigen::MatrixXd Rpp( R.block(6, 6, 3 * m_ - 3, 3 * m_ - 3) );
+
+  Z_ = A_inv_multiply_Ct_.transpose() * Z_all;
+  Zp_ = Z_.block(6, 0, 3 * m_ - 3, 3);
+
+  Eigen::MatrixXd Zp_minus_Rpf_multiply_Df = Zp_ - Rpf * D_.block(0, 0, 6, 3);
+  // D_.block(6, 0, 3 * m_ - 3, 3) = Rpp.inverse() * Zp_minus_Rpf_multiply_Df;
+  D_.block(6, 0, 3 * m_ - 3, 3) = Rpp.llt().solve(Zp_minus_Rpf_multiply_Df); //Rpp is PD, so use LLT to solve LP
+  Eigen::MatrixXd P = A_inv_multiply_Ct_ * D_;
+
+  // auto end1 = std::chrono::high_resolution_clock::now();
+  std::vector<CoefficientMat> coeffMats;
+  CoefficientMat coeffMat;
+  for(int i = 0; i < m_; i ++) 
+  {
+    for (int j = 0; j < 6; ++j)
+    {
+      coeffMat(0, j) = P(i * 6 + 5 - j, 0);
+      coeffMat(1, j) = P(i * 6 + 5 - j, 1);
+      coeffMat(2, j) = P(i * 6 + 5 - j, 2);
+    }
+    coeffMats.push_back(coeffMat);
+  }
+  // auto end2 = std::chrono::high_resolution_clock::now();
+  optimized_traj_ = Trajectory(time_, coeffMats);
+
+  // auto end3 = std::chrono::high_resolution_clock::now();
+  // std::chrono::duration<double> diff1 = end1-start;
+  // std::cout << "Matrix multiply: " << diff1.count() * 1e6 << " us\n";
+  // std::chrono::duration<double> diff2 = end2-end1;
+  // std::cout << "fuzhi coeff: " << diff2.count() * 1e6 << " us\n";
+  // std::chrono::duration<double> diff3 = end3-end2;
+  // std::cout << "traj coeff: " << diff3.count() * 1e6 << " us\n";
+}
+
 
 //middle p\v consistent
 void TrajOptimizer::tryQPCloseForm(double percent_of_close, double percent_of_acc)

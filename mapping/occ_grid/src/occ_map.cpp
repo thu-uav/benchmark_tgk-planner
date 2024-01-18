@@ -291,6 +291,8 @@ void OccMap::depthOdomCallback(const sensor_msgs::ImageConstPtr& depth_msg,
     pubPointCloudFromDepth(depth_msg->header, depth_image_, K_depth_, camera_name);
   }
 
+  auto t_start = std::chrono::system_clock::now();
+
   proj_points_cnt_ = 0;
   projectDepthImage(K_depth_, T_wc, depth_image_, last_T_wc, last_depth_image, depth_msg->header.stamp);
   raycastProcess(t_wc);
@@ -308,6 +310,10 @@ void OccMap::depthOdomCallback(const sensor_msgs::ImageConstPtr& depth_msg,
   curr_q_.y() = odom->pose.pose.orientation.y;
   curr_q_.z() = odom->pose.pose.orientation.z;
   have_odom_ = true;
+  auto t_map = std::chrono::system_clock::now() - t_start;
+  std_msgs::Float32 time_msg;
+  time_msg.data = std::chrono::duration_cast<std::chrono::nanoseconds>(t_map).count() / 1e6;
+  mapping_time_pub_.publish(time_msg);
 }
 
 void OccMap::projectDepthImage(const Eigen::Matrix3d& K, 
@@ -768,6 +774,7 @@ void OccMap::init(const ros::NodeHandle& nh)
 	global_cloud_sub_ = node_.subscribe<sensor_msgs::PointCloud2>("/global_cloud", 1, &OccMap::globalCloudCallback, this);
 	origin_pcl_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/occ_map/raw_pcl", 1);
   projected_pc_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/occ_map/filtered_pcl", 1);
+  mapping_time_pub_ = node_.advertise<std_msgs::Float32>("/mapping_time", 10);
 }
 
 }  // namespace tgk_planner

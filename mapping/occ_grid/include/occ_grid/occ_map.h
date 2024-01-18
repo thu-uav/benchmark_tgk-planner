@@ -9,11 +9,13 @@
 
 #include <ros/ros.h>
 #include <nav_msgs/Odometry.h>
+#include <std_msgs/Float32.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/exact_time.h>
 #include <message_filters/sync_policies/approximate_time.h>
+#include <chrono>
 // #include <tf2_ros/transform_listener.h>
 
 #include <queue>
@@ -94,7 +96,7 @@ private:
 	ros::Time latest_odom_time_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr curr_view_cloud_ptr_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr history_view_cloud_ptr_;
-	ros::Publisher curr_view_cloud_pub_, hist_view_cloud_pub_; 
+	ros::Publisher curr_view_cloud_pub_, hist_view_cloud_pub_, mapping_time_pub_; 
 	ros::Publisher pose_vis_pub_, twist_vis_pub_, acc_vis_pub_;
 
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, nav_msgs::Odometry> SyncPolicyImageOdom;

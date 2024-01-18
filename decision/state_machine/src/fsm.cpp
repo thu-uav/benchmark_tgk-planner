@@ -34,6 +34,7 @@ namespace tgk_planner
     qrcode_pose_sub_ = nh_.subscribe("/qrcode_detector/qrcode_position", 1, &FSM::qrcodeCallback, this);
     goal_sub_ = nh_.subscribe("/goal", 1, &FSM::goalCallback, this);
     traj_pub_ = nh_.advertise<quadrotor_msgs::PolynomialTrajectory>("planning/poly_traj", 10);
+    planning_time_pub_ = nh_.advertise<std_msgs::Float32>("/planning_time", 10);
     execution_timer_ = nh_.createTimer(ros::Duration(0.01), &FSM::executionCallback, this); // 100Hz
     track_err_trig_sub_ = nh_.subscribe("/trig/tracking_err", 1, &FSM::trackErrCallback, this);
     rcv_glb_obs_client_ = nh_.serviceClient<self_msgs_and_srvs::GlbObsRcv>("/pub_glb_obs");
@@ -370,6 +371,11 @@ namespace tgk_planner
     default:
       break;
     }
+
+    //time_pub
+    std_msgs::Float32 time_msg;
+    time_msg.data = optimize_time_+search_time_;
+    planning_time_pub_.publish(time_msg);
   }
 
   bool FSM::searchForTraj(Vector3d start_pos, Vector3d start_vel, Vector3d start_acc,
@@ -377,7 +383,9 @@ namespace tgk_planner
                           double search_time, const Vector3d &normal, const Vector3d &dire, bool need_consistancy)
   {
     int result(false);
+    auto t_start = std::chrono::system_clock::now();
     result = front_end_planner_ptr2_->plan(start_pos, start_vel, start_acc, end_pos, end_vel, end_acc, search_time, normal, dire, need_consistancy);
+    search_time_ = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now()-t_start).count() / 1e6;
     if (result == SUCCESS)
     {
       close_goal_traj_ = false;
@@ -398,8 +406,10 @@ namespace tgk_planner
     if (!optimizer_ptr_->setFrontEndTraj(traj_)) {
       return false;
     }
+    auto t_start = std::chrono::system_clock::now();
     bool res = optimizer_ptr_->solve();
     ros::Time optimize_end_time = ros::Time::now();
+    optimize_time_ = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now()-t_start).count() / 1e6;
     ROS_INFO_STREAM("optimize time: " << (optimize_end_time - optimize_start_time).toSec());
     return res;
   }

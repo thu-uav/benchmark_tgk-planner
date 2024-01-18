@@ -64,6 +64,9 @@ private:
   Eigen::MatrixXd A_;
   Eigen::MatrixXd A_inv_;
   Eigen::MatrixXd Q_smooth_, Q_close_, Q_acc_;
+  Eigen::MatrixXd Q_all_;
+  Eigen::MatrixXd Z_all_;
+  Eigen::MatrixXd D_;
   Eigen::MatrixXd C_;
   Eigen::MatrixXd L_;
   Eigen::MatrixXd R_;
@@ -90,6 +93,7 @@ private:
   void tryQPCloseForm(double percent_of_close, double percent_of_acc);
   void tryQPCloseForm(double percent_of_close);
   void tryQPCloseForm();
+  void tryQP(const MatrixXd &Q_all, const MatrixXd &Z_all);
 
   void calMatrixA();
   void calMatrixCandMatrixZ(int type);

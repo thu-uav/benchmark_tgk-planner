@@ -7,9 +7,11 @@
 #include <visualization_msgs/Marker.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <std_msgs/Empty.h>
+#include <std_msgs/Float32.h>
 #include "quadrotor_msgs/PositionCommand.h"
 #include "quadrotor_msgs/PolynomialTrajectory.h"
 #include "quadrotor_msgs/TrajectoryPoint.h"
+#include <chrono>
 
 using std::vector;
 
@@ -18,7 +20,7 @@ const int  _DIM_y = 1;
 const int  _DIM_z = 2;
 
 enum ServerState{INIT, TRAJ, HOVER} _state = INIT;
-ros::Publisher _cmd_pub, _cmd_vis_pub, _track_err_trig_pub;
+ros::Publisher _cmd_pub, _cmd_vis_pub, _track_err_trig_pub, projection_time_pub_;
 Eigen::Vector3d _curr_posi;
 Eigen::Vector3d _goal_point;
 quadrotor_msgs::PositionCommand _cmd, _last_cmd;
@@ -279,6 +281,7 @@ void odomCallbck(const nav_msgs::OdometryConstPtr odom)
     
     // #3. calculate the desired states
     //ROS_WARN("[SERVER] the time : %.3lf\n, n = %d, m = %d", t, _n_order, _n_segment);
+    auto t_start = std::chrono::system_clock::now();
     for (int idx = 0; idx < _n_segment; ++idx)
     {
       if (t > _time[idx] && idx + 1 < _n_segment)
@@ -337,6 +340,10 @@ void odomCallbck(const nav_msgs::OdometryConstPtr odom)
         break;
       } 
     }
+    auto t_projection = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now()-t_start).count() / 1e6;
+    std_msgs::Float32 time_msg;
+    time_msg.data = t_projection;
+    projection_time_pub_.publish(time_msg);
   }
   // #4. just publish
   quadrotor_msgs::TrajectoryPoint cmd_new_;
@@ -387,6 +394,7 @@ int main(int argc, char** argv)
   _cmd_pub = node.advertise<quadrotor_msgs::TrajectoryPoint>("/position_cmd", 50);
   _cmd_vis_pub = node.advertise<visualization_msgs::Marker>("planning/position_cmd_vis", 10);
   _track_err_trig_pub = node.advertise<std_msgs::Empty>("/trig/tracking_err", 1);
+  projection_time_pub_ = node.advertise<std_msgs::Float32>("/projection_time", 10);
 
   /* control parameter for so3 control*/
   _cmd.kx[0] = pos_gain[0];

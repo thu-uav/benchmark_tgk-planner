@@ -15,6 +15,8 @@
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PointStamped.h>
 #include <std_msgs/Empty.h>
+#include <std_msgs/Float32.h>
+#include <chrono>
 
 namespace tgk_planner
 {
@@ -52,7 +54,7 @@ private:
   ros::Subscriber goal_sub_;
   ros::Subscriber qrcode_pose_sub_;
   ros::Subscriber track_err_trig_sub_;
-  ros::Publisher traj_pub_;
+  ros::Publisher traj_pub_, planning_time_pub_;
   ros::Timer execution_timer_;
   ros::ServiceClient rcv_glb_obs_client_;
   void qrcodeCallback(const geometry_msgs::PointStamped::ConstPtr& msg);
@@ -84,6 +86,8 @@ private:
   Trajectory front_end_traj_, back_end_traj_, traj_;
   Eigen::Vector3d pos_about_to_collide_;
   double remain_safe_time_, e_stop_time_margin_, replan_check_duration_;
+
+  double search_time_ = 0.0, optimize_time_ = 0.0;
 };
     
     
