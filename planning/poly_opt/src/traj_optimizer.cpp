@@ -91,7 +91,7 @@ bool TrajOptimizer::solve()
   double weight_smooth = 400;
   double weight_close = 90;
   double weight_acc = 100;
-  for (; per_close <= 40.0; per_close += 1)
+  for (; per_close <= 40.0; per_close += 2)
   {
     Q_all_ = weight_smooth * Q_smooth_ + weight_close * Q_close_ + weight_acc * Q_acc_;
     Z_all_ = weight_close * Q_close_ * coeff0_;
